@@ -158,3 +158,44 @@ export class EmployeeController {
 ---
 
 
+>#### Click Authentication
+><img width="1599" height="559" alt="image" src="https://github.com/user-attachments/assets/def141d7-a778-463d-a69b-7c52759f24ae" />
+>
+>#
+>#### click create new user
+><img width="269" height="198" alt="image" src="https://github.com/user-attachments/assets/cada2d2b-3c8c-4eaf-b116-c94e2a0d42f7" />
+>
+>#
+>#### create new user
+><img width="408" height="396" alt="image" src="https://github.com/user-attachments/assets/6052c419-e82d-444a-b0d2-5de7328f297c" />
+>
+>#
+>#### created
+><img width="1599" height="765" alt="image" src="https://github.com/user-attachments/assets/9ddc88a4-df8f-4b4d-8dea-01aac4ac40c9" />
+>
+>#
+>#### copy project ID
+><img width="752" height="425" alt="image" src="https://github.com/user-attachments/assets/c4ac7bbc-8557-40dc-8f7b-cb515ca2c10f" />
+>
+>#
+>#### postman e project id url e boshao
+><img width="1154" height="56" alt="image" src="https://github.com/user-attachments/assets/35d3919e-a8d8-415b-af9a-bf9faf97ae99" />
+>
+>#
+>#### url e add koro- .supabase.co/auth/v1/token?grant_type=password abong Body daw
+><img width="1177" height="233" alt="image" src="https://github.com/user-attachments/assets/10b0d4fa-936e-434b-b164-dacdb4003075" />
+>
+>#
+>#### api key copy koro-
+><img width="1500" height="595" alt="image" src="https://github.com/user-attachments/assets/b4a1542b-3a26-43f3-89a7-70ee6df1c14b" />
+>#
+>#### Headers e apikey ar Content-Type daw
+><img width="1166" height="277" alt="image" src="https://github.com/user-attachments/assets/200894b7-d0b0-49b4-a454-b6332dfcb5d4" />
+>#
+>#### Send click koro-
+><img width="1193" height="697" alt="image" src="https://github.com/user-attachments/assets/63e5cc67-b6c8-416a-8106-bdb724ce2abb" />
+>
+>#
+>#### Authorization e Bearer(space diye) token add koro- then Send click koro-
+><img width="1173" height="285" alt="image" src="https://github.com/user-attachments/assets/c43c4701-d501-4d63-a43b-af20c9f337aa" />
+>---
