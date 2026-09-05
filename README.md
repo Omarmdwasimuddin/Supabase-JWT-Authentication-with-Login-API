@@ -93,3 +93,68 @@ export class SupabaseAuthGuard implements CanActivate {
 }
 ```
 ---
+
+
+>#### add- @UseGuards(SupabaseAuthGuard)
+#### `employee.controller.ts`
+```bash
+import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { EmployeeService } from './employee.service';
+import { Employee } from './employees.entity';
+
+@Controller('employee')
+export class EmployeeController {
+    constructor(private readonly employeeService: EmployeeService) {}
+
+    @Post()
+    async createEmployee(@Body() employeeData: Partial<Employee>) {
+        return this.employeeService.createEmployee(employeeData);
+    }
+
+    @UseGuards(SupabaseAuthGuard)
+    @Get()
+    async findAllEmployees(): Promise<Employee[]> {
+        return this.employeeService.findAllEmployees();
+    }
+
+    @Get('filter')
+    async filterEmployees(
+        @Query('name') name?: string,
+        @Query('department') department?: string,
+    ): Promise<Employee[]> {
+        return this.employeeService.search({ name, department });
+    }
+
+    @Get(':id')
+    async findEmployeeById(@Param('id') id: number): Promise<Employee | null> {
+        return this.employeeService.findOneEmployee(id);
+    }
+
+    // find by name
+    @Get('name/:name')
+    async findEmployeeByName(@Param('name') name: string): Promise<Employee[]> {
+        return this.employeeService.findByName(name);
+    }
+
+    // search by keyword (partial match)
+    @Get('search/:keyword')
+    async searchEmployeeByKeyword(@Param('keyword') keyword: string): Promise<Employee[]> {
+        return this.employeeService.searchByKeyword(keyword);
+    }
+
+    @Put(':id')
+    async updateEmployee(
+        @Param('id') id: number,
+        @Body() updateData: Partial<Employee>): Promise<Employee> {
+        return this.employeeService.update(id, updateData);
+    }
+
+    @Delete(':id')
+    async deleteEmployee(@Param('id') id: number): Promise<{ message: string }> {
+        return this.employeeService.delete(id);
+    }
+}
+```
+---
+
+
