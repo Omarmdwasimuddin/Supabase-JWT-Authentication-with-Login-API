@@ -1,1 +1,1 @@
-# Supabase-JWT-Authentication-with-Login-API
+## Supabase JWT Authentication with Login API
