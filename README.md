@@ -16,5 +16,12 @@ npm i jsonwebtoken
 ```bash
 SUPABASE_JWT_SECRET=''
 ```
+---
 
+
+>#### Note: add koro- ConfigModule.forRoot({isGlobal: true,})
+#### `app.module.ts`
+```bash
+
+```
 ---
