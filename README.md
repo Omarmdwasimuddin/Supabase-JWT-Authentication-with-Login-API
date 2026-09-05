@@ -25,7 +25,7 @@ Supabase project-এর **Settings → JWT Keys**-এ গিয়ে **Legacy J
 ### `.env`
 
 ```bash
-SUPABASE_JWT_SECRET=''
+SUPABASE_JWT_SECRET=
 ```
 
 উপরের quote-এর ভিতরে copy করা secret বসিয়ে দাও।
