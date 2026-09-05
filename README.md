@@ -28,7 +28,7 @@ Supabase project-এর **Settings → JWT Keys**-এ গিয়ে **Legacy J
 SUPABASE_JWT_SECRET=
 ```
 
-উপরের quote-এর ভিতরে copy করা secret বসিয়ে দাও।
+ copy করা secret বসিয়ে দাও।
 
 ---
 
