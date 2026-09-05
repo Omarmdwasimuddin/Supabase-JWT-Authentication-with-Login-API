@@ -43,3 +43,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 export class AppModule {}
 ```
 ---
+
+
+#### Create guard
+```bash
+nest g guard auth/supabase-auth
+```
+---
