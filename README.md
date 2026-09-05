@@ -1,34 +1,50 @@
-## Supabase JWT Authentication with Login API
+# Supabase JWT Authentication with Login API 
 
+আগের গাইডগুলোতে Supabase PostgreSQL দিয়ে CRUD API বানানো হয়েছিল। এবার সেই API-কে **Supabase Authentication** দিয়ে সুরক্ষিত করা হবে — মানে Supabase-এ login করে যে JWT token পাওয়া যায়, সেটা verify করে তবেই route access দেওয়া হবে, একটা custom **Guard** বানিয়ে।
 
-#### Install jsonwebtoken
+---
+
+## ধাপ ১: `jsonwebtoken` Install করা
+
+JWT token verify করার জন্য এই package লাগবে:
+
 ```bash
 npm i jsonwebtoken
 ```
+
 ---
 
+## ধাপ ২: Supabase থেকে JWT Secret নেওয়া
 
->#### Note: project settings theke JWT Keys theke Legacy JWT Secret keys Reveal kore copy koro
-><img width="306" height="574" alt="image" src="https://github.com/user-attachments/assets/5cbc111f-01af-4395-93c2-15c9e87249d6" />
-><img width="1543" height="568" alt="image" src="https://github.com/user-attachments/assets/b8e058f1-ef51-4dfb-aa0f-84975460dae6" />
+Supabase project-এর **Settings → JWT Keys**-এ গিয়ে **Legacy JWT Secret** key **Reveal** করে copy করো।
 
-#### `.env`
+![JWT Keys সেটিংস](https://github.com/user-attachments/assets/5cbc111f-01af-4395-93c2-15c9e87249d6)
+
+![Legacy JWT Secret reveal করা](https://github.com/user-attachments/assets/b8e058f1-ef51-4dfb-aa0f-84975460dae6)
+
+### `.env`
+
 ```bash
 SUPABASE_JWT_SECRET=''
 ```
+
+উপরের quote-এর ভিতরে copy করা secret বসিয়ে দাও।
+
 ---
 
+## ধাপ ৩: `app.module.ts`-এ Config Global করা
 
->#### Note: add koro- ConfigModule.forRoot({isGlobal: true,})
-#### `app.module.ts`
-```bash
+> **নোট:** `ConfigModule.forRoot({ isGlobal: true })` — এভাবে `isGlobal: true` দিলে `ConfigModule` পুরো application জুড়ে available হয়ে যায়, প্রতিটা module-এ আলাদা করে import করা লাগবে না। যেহেতু Guard-টা `auth` নামের আলাদা folder-এ থাকবে, সেখানে `ConfigService` ব্যবহার করতে হলে এই global setting-টা দরকার।
+
+### `app.module.ts`
+
+```ts
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { EmployeeModule } from './employee/employee.module';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-
 
 @Module({
   imports: [ ConfigModule.forRoot({ isGlobal: true }), TypeOrmModule.forRoot({
@@ -42,24 +58,25 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 })
 export class AppModule {}
 ```
+
 ---
 
+## ধাপ ৪: Guard তৈরি করা
 
-#### Create guard
 ```bash
 nest g guard auth/supabase-auth
 ```
----
 
+এই command চালালে `auth` নামের folder-এর ভিতরে `supabase-auth.guard.ts` তৈরি হবে।
 
-#### `supabase-auth.guard.ts`
-```bash
+### `supabase-auth.guard.ts`
+
+```ts
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import * as jwt from 'jsonwebtoken';
 import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
-
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
@@ -92,15 +109,31 @@ export class SupabaseAuthGuard implements CanActivate {
   }
 }
 ```
+
+### এই Guard কী করছে, ধাপে ধাপে
+
+1. Request-এর `authorization` header বের করে
+2. Header না থাকলে বা `Bearer ` দিয়ে শুরু না হলে → `UnauthorizedException('No token provided')`
+3. Header থেকে `Bearer ` অংশটুকু বাদ দিয়ে আসল token বের করে (`split(' ')[1]`)
+4. `.env` থেকে `SUPABASE_JWT_SECRET` নেয় (`ConfigService` দিয়ে)
+5. Secret না পেলে → `UnauthorizedException('JWT secret not configured')`
+6. `jwt.verify(token, jwtSecret)` দিয়ে token verify করে — token সঠিক ও এখনো valid (expire হয়নি) কিনা চেক করে
+7. Verify সফল হলে decode হওয়া data-টা `request['user']`-এ বসিয়ে দেয় — যাতে পরে controller/service-এ `request.user` দিয়ে সেই logged-in user-এর তথ্য পাওয়া যায়
+8. Verify ব্যর্থ হলে (ভুল token, মেয়াদ শেষ ইত্যাদি) → `UnauthorizedException('Invalid token')`
+
 ---
 
+## ধাপ ৫: Controller-এ Guard বসানো
 
->#### add- @UseGuards(SupabaseAuthGuard)
-#### `employee.controller.ts`
-```bash
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+Route-টাকে সুরক্ষিত করতে `@UseGuards(SupabaseAuthGuard)` decorator বসাতে হবে।
+
+### `employee.controller.ts`
+
+```ts
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { EmployeeService } from './employee.service';
 import { Employee } from './employees.entity';
+import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 
 @Controller('employee')
 export class EmployeeController {
@@ -155,47 +188,73 @@ export class EmployeeController {
     }
 }
 ```
+
+এখানে শুধু `findAllEmployees()` (মানে `GET /employee`) route-টাই `SupabaseAuthGuard` দিয়ে সুরক্ষিত — এটা **method-scoped** guard। বাকি route-গুলো (filter, id দিয়ে খোঁজা, name/keyword দিয়ে খোঁজা, update, delete) এখনো unprotected — চাইলে সবগুলো route-এই বা পুরো controller-এই (`@Controller`-এর উপরে বসিয়ে) guard লাগানো যায়।
+
 ---
 
+## ধাপ ৬: Supabase-এ Test User তৈরি করা
 
->#### Click Authentication
-><img width="1599" height="559" alt="image" src="https://github.com/user-attachments/assets/def141d7-a778-463d-a69b-7c52759f24ae" />
->
->#
->#### click create new user
-><img width="269" height="198" alt="image" src="https://github.com/user-attachments/assets/cada2d2b-3c8c-4eaf-b116-c94e2a0d42f7" />
->
->#
->#### create new user
-><img width="408" height="396" alt="image" src="https://github.com/user-attachments/assets/6052c419-e82d-444a-b0d2-5de7328f297c" />
->
->#
->#### created
-><img width="1599" height="765" alt="image" src="https://github.com/user-attachments/assets/9ddc88a4-df8f-4b4d-8dea-01aac4ac40c9" />
->
->#
->#### copy project ID
-><img width="752" height="425" alt="image" src="https://github.com/user-attachments/assets/c4ac7bbc-8557-40dc-8f7b-cb515ca2c10f" />
->
->#
->#### postman e project id url e boshao
-><img width="1154" height="56" alt="image" src="https://github.com/user-attachments/assets/35d3919e-a8d8-415b-af9a-bf9faf97ae99" />
->
->#
->#### url e add koro- .supabase.co/auth/v1/token?grant_type=password abong Body daw
-><img width="1177" height="233" alt="image" src="https://github.com/user-attachments/assets/10b0d4fa-936e-434b-b164-dacdb4003075" />
->
->#
->#### api key copy koro-
-><img width="1500" height="595" alt="image" src="https://github.com/user-attachments/assets/b4a1542b-3a26-43f3-89a7-70ee6df1c14b" />
->#
->#### Headers e apikey ar Content-Type daw
-><img width="1166" height="277" alt="image" src="https://github.com/user-attachments/assets/200894b7-d0b0-49b4-a454-b6332dfcb5d4" />
->#
->#### Send click koro-
-><img width="1193" height="697" alt="image" src="https://github.com/user-attachments/assets/63e5cc67-b6c8-416a-8106-bdb724ce2abb" />
->
->#
->#### Authorization e Bearer(space diye) token add koro- then Send click koro-
-><img width="1173" height="285" alt="image" src="https://github.com/user-attachments/assets/c43c4701-d501-4d63-a43b-af20c9f337aa" />
->---
+Supabase dashboard-এ **Authentication** ট্যাবে ক্লিক করো।
+
+![Authentication ট্যাব](https://github.com/user-attachments/assets/def141d7-a778-463d-a69b-7c52759f24ae)
+
+**"Create new user"** বাটনে ক্লিক করো।
+
+![Create new user বাটন](https://github.com/user-attachments/assets/cada2d2b-3c8c-4eaf-b116-c94e2a0d42f7)
+
+Email/password দিয়ে user তৈরি করো।
+
+![New user তৈরি করা](https://github.com/user-attachments/assets/6052c419-e82d-444a-b0d2-5de7328f297c)
+
+User সফলভাবে তৈরি হয়ে গেলে এমন দেখাবে।
+
+![User তৈরি সম্পন্ন](https://github.com/user-attachments/assets/9ddc88a4-df8f-4b4d-8dea-01aac4ac40c9)
+
+---
+
+## ধাপ ৭: Postman দিয়ে Login করে Token নেওয়া
+
+Supabase project-এর **Project ID** copy করো।
+
+![Project ID copy করা](https://github.com/user-attachments/assets/c4ac7bbc-8557-40dc-8f7b-cb515ca2c10f)
+
+Postman-এ URL-এ সেই Project ID বসাও।
+
+![Postman URL-এ Project ID বসানো](https://github.com/user-attachments/assets/35d3919e-a8d8-415b-af9a-bf9faf97ae99)
+
+URL-এর শেষে যোগ করো `.supabase.co/auth/v1/token?grant_type=password`, এবং Body-তে email/password দাও (login credentials, যেটা user তৈরির সময় দেওয়া হয়েছিল)।
+
+![URL-এ endpoint যোগ ও Body দেওয়া](https://github.com/user-attachments/assets/10b0d4fa-936e-434b-b164-dacdb4003075)
+
+Supabase project থেকে **API key** copy করো।
+
+![API key copy করা](https://github.com/user-attachments/assets/b4a1542b-3a26-43f3-89a7-70ee6df1c14b)
+
+Postman-এর **Headers**-এ `apikey` আর `Content-Type` যোগ করো।
+
+![Headers-এ apikey ও Content-Type](https://github.com/user-attachments/assets/200894b7-d0b0-49b4-a454-b6332dfcb5d4)
+
+**Send** বাটনে ক্লিক করলে response-এ `access_token` পাওয়া যাবে — এটাই আসল JWT token।
+
+![Send করে response পাওয়া](https://github.com/user-attachments/assets/63e5cc67-b6c8-416a-8106-bdb724ce2abb)
+
+---
+
+## ধাপ ৮: সেই Token দিয়ে Protected Route Access করা
+
+এখন `GET /employee` route (যেটাতে `SupabaseAuthGuard` বসানো আছে) call করার সময়, Postman-এর **Authorization** header-এ বসাও:
+
+```
+Bearer <access_token>
+```
+
+(`Bearer`-এর পর একটা স্পেস দিয়ে token বসাতে হবে)
+
+এরপর **Send** ক্লিক করলে, Guard token verify করে request পাস করে দেবে, আর employee list ফেরত আসবে।
+
+![Authorization-এ Bearer token বসানো](https://github.com/user-attachments/assets/c43c4701-d501-4d63-a43b-af20c9f337aa)
+
+> **যদি token ছাড়াই বা ভুল token দিয়ে চেষ্টা করো**, তাহলে Guard-এর ভিতরের `UnauthorizedException` throw হবে এবং response হবে `401 Unauthorized` — এটাই প্রমাণ করে Guard ঠিকমতো কাজ করছে।
+
+---
