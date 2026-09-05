@@ -14,8 +14,6 @@ npm i jsonwebtoken
 
 #### `.env`
 ```bash
-# .env
-DATABASE_URL=''
 SUPABASE_JWT_SECRET=''
 ```
 
