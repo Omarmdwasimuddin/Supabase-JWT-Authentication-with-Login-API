@@ -1,10 +1,10 @@
-# Supabase JWT Authentication with Login API 
+# Supabase JWT Authentication with Login API
 
 আগের গাইডগুলোতে Supabase PostgreSQL দিয়ে CRUD API বানানো হয়েছিল। এবার সেই API-কে **Supabase Authentication** দিয়ে সুরক্ষিত করা হবে — মানে Supabase-এ login করে যে JWT token পাওয়া যায়, সেটা verify করে তবেই route access দেওয়া হবে, একটা custom **Guard** বানিয়ে।
 
 ---
 
-## ধাপ ১: `jsonwebtoken` Install করা
+## ধাপ ১: `jose` Install করা
 
 JWT token verify করার জন্য এই package লাগবে:
 
@@ -14,7 +14,7 @@ npm i jose
 
 ---
 
-## ধাপ ২: Supabase থেকে JWT Secret নেওয়া
+## ধাপ ২: Supabase থেকে প্রয়োজনীয় তথ্য নেওয়া
 
 Supabase project-এর **Settings → JWT Keys**-এ গিয়ে **Legacy JWT Secret** key **Reveal** করে copy করো।
 
@@ -22,13 +22,17 @@ Supabase project-এর **Settings → JWT Keys**-এ গিয়ে **Legacy J
 
 ![Legacy JWT Secret reveal করা](https://github.com/user-attachments/assets/b8e058f1-ef51-4dfb-aa0f-84975460dae6)
 
+এছাড়াও **Settings → General → Project Settings**-এ গিয়ে **Project ID** copy করো (এটা দিয়েই project-এর URL বসবে)।
+
 ### `.env`
 
 ```bash
 SUPABASE_JWT_SECRET=
+SUPABASE_URL=
 ```
 
- copy করা secret বসিয়ে দাও।
+- `SUPABASE_JWT_SECRET` — Legacy JWT Secret বসাতে হবে (ভবিষ্যতে fallback বা অন্য কোনো verification পদ্ধতির জন্য রাখা, বর্তমান JWKS-ভিত্তিক Guard-এ এটা সরাসরি ব্যবহার হচ্ছে না)
+- `SUPABASE_URL` — এই ফরম্যাটে বসবে: `https://<project-id>.supabase.co` (Project ID বসিয়ে)
 
 ---
 
@@ -111,14 +115,15 @@ export class SupabaseAuthGuard implements CanActivate {
 
 ### এই Guard কী করছে, ধাপে ধাপে
 
-1. Request-এর `authorization` header বের করে
-2. Header না থাকলে বা `Bearer ` দিয়ে শুরু না হলে → `UnauthorizedException('No token provided')`
-3. Header থেকে `Bearer ` অংশটুকু বাদ দিয়ে আসল token বের করে (`split(' ')[1]`)
-4. `.env` থেকে `SUPABASE_JWT_SECRET` নেয় (`ConfigService` দিয়ে)
-5. Secret না পেলে → `UnauthorizedException('JWT secret not configured')`
-6. `jwt.verify(token, jwtSecret)` দিয়ে token verify করে — token সঠিক ও এখনো valid (expire হয়নি) কিনা চেক করে
-7. Verify সফল হলে decode হওয়া data-টা `request['user']`-এ বসিয়ে দেয় — যাতে পরে controller/service-এ `request.user` দিয়ে সেই logged-in user-এর তথ্য পাওয়া যায়
-8. Verify ব্যর্থ হলে (ভুল token, মেয়াদ শেষ ইত্যাদি) → `UnauthorizedException('Invalid token')`
+1. Constructor-এ `ConfigService` থেকে `SUPABASE_URL` নেয়, আর সেটা দিয়ে `createRemoteJWKSet` ব্যবহার করে একটা `JWKS` object তৈরি করে রাখে — এটা Supabase-এর `/auth/v1/.well-known/jwks.json` endpoint থেকে signing key(গুলো) fetch ও cache করে রাখে (প্রতি request-এ নতুন করে fetch করে না)
+2. Request-এর `authorization` header বের করে
+3. Header না থাকলে বা `Bearer ` দিয়ে শুরু না হলে → `UnauthorizedException('No token provided')`
+4. Header থেকে `Bearer ` অংশটুকু বাদ দিয়ে আসল token বের করে (`split(' ')[1]`)
+5. `jwtVerify(token, JWKS)` দিয়ে token verify করে — `jose` নিজে থেকেই token-এর header দেখে সঠিক public key বেছে নেয় JWKS থেকে, এবং signature ও expiry (`exp`) চেক করে
+6. Verify সফল হলে decode হওয়া `payload`-টা `request['user']`-এ বসিয়ে দেয় — যাতে পরে controller/service-এ `request.user` দিয়ে সেই logged-in user-এর তথ্য পাওয়া যায়
+7. Verify ব্যর্থ হলে (ভুল token, মেয়াদ শেষ, signature না মেলা ইত্যাদি) → error message log করে `UnauthorizedException('Invalid token')` throw করে
+
+> **গুরুত্বপূর্ণ:** এই JWKS-ভিত্তিক approach তখনই কাজ করে যখন Supabase project-এর JWT signing **asymmetric (ES256/RS256)** হয়। প্রজেক্টের JWT algorithm Supabase Dashboard-এর **Settings → API → JWT Settings**-এ গিয়ে দেখে নেওয়া ভালো।
 
 ---
 
@@ -225,7 +230,6 @@ Postman-এ URL-এ সেই Project ID বসাও।
 ```bash
 https://
 ```
----
 
 URL-এর শেষে যোগ করো `.supabase.co/auth/v1/token?grant_type=password`, এবং Body-তে email/password দাও (login credentials, যেটা user তৈরির সময় দেওয়া হয়েছিল)।
 
@@ -262,3 +266,10 @@ Bearer <access_token>
 > **যদি token ছাড়াই বা ভুল token দিয়ে চেষ্টা করো**, তাহলে Guard-এর ভিতরের `UnauthorizedException` throw হবে এবং response হবে `401 Unauthorized` — এটাই প্রমাণ করে Guard ঠিকমতো কাজ করছে।
 
 ---
+
+## যা পরিবর্তন হলো (এই আপডেটের সারসংক্ষেপ)
+
+- `jsonwebtoken` বাদ দিয়ে **`jose`** package install করা হয়েছে
+- `.env`-এ `SUPABASE_JWT_SECRET`-এর পাশাপাশি নতুন করে **`SUPABASE_URL`** যোগ করা হয়েছে
+- Guard-এর ভিতরের verification পদ্ধতি বদলে গেছে: আগে `jwt.verify(token, secret)` (shared-secret) ব্যবহার হতো, এখন `jwtVerify(token, JWKS)` ব্যবহার হচ্ছে, যেখানে `JWKS` টা Supabase-এর `/auth/v1/.well-known/jwks.json` endpoint থেকে asymmetric public key নিয়ে আসে (`createRemoteJWKSet` দিয়ে)
+- এই নতুন পদ্ধতি live test করে (Postman দিয়ে `GET /employee` call করে) `200 OK` সহ verify করা হয়েছে — token সঠিকভাবে verify হয়ে `request['user']` populate হচ্ছে
