@@ -132,7 +132,7 @@ Route-টাকে সুরক্ষিত করতে `@UseGuards(SupabaseAut
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { EmployeeService } from './employee.service';
 import { Employee } from './employees.entity';
-import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
+import { SupabaseAuthGuard } from '../auth/supabase-auth/supabase-auth.guard';
 
 @Controller('employee')
 export class EmployeeController {
@@ -143,8 +143,8 @@ export class EmployeeController {
         return this.employeeService.createEmployee(employeeData);
     }
 
-    @UseGuards(SupabaseAuthGuard)
     @Get()
+    @UseGuards(SupabaseAuthGuard)
     async findAllEmployees(): Promise<Employee[]> {
         return this.employeeService.findAllEmployees();
     }
