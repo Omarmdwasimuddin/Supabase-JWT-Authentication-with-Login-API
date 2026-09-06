@@ -9,7 +9,7 @@
 JWT token verify করার জন্য এই package লাগবে:
 
 ```bash
-npm i jsonwebtoken
+npm i jose
 ```
 
 ---
@@ -73,37 +73,36 @@ nest g guard auth/supabase-auth
 
 ```ts
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { Observable } from 'rxjs';
-import * as jwt from 'jsonwebtoken';
 import { Request } from 'express';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
+  private readonly JWKS: ReturnType<typeof createRemoteJWKSet>;
 
-  constructor(
-    private configService: ConfigService
-  ) {}
+  constructor(private configService: ConfigService) {
+    const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
+    this.JWKS = createRemoteJWKSet(
+      new URL(`${supabaseUrl}/auth/v1/.well-known/jwks.json`)
+    );
+  }
 
-  canActivate(
-    context: ExecutionContext,
-  ): boolean | Promise<boolean> | Observable<boolean> {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const authHeader = request.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw new UnauthorizedException('No token provided');
     }
     const token = authHeader.split(' ')[1];
-    const jwtSecret = this.configService.get<string>('SUPABASE_JWT_SECRET');
-    if (!jwtSecret) {
-      throw new UnauthorizedException('JWT secret not configured');
-    }
+
     try {
-     const decode = jwt.verify(token, jwtSecret);
-     request['user'] = decode; // Attach decoded token to request object
-     return true;
-    }
-    catch (error) {
+      const { payload } = await jwtVerify(token, this.JWKS);
+      request['user'] = payload;
+      return true;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.log('JWT VERIFY ERROR:', message);
       throw new UnauthorizedException('Invalid token');
     }
   }
