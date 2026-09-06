@@ -222,6 +222,11 @@ Postman-এ URL-এ সেই Project ID বসাও।
 
 ![Postman URL-এ Project ID বসানো](https://github.com/user-attachments/assets/35d3919e-a8d8-415b-af9a-bf9faf97ae99)
 
+```bash
+https://
+```
+---
+
 URL-এর শেষে যোগ করো `.supabase.co/auth/v1/token?grant_type=password`, এবং Body-তে email/password দাও (login credentials, যেটা user তৈরির সময় দেওয়া হয়েছিল)।
 
 ![URL-এ endpoint যোগ ও Body দেওয়া](https://github.com/user-attachments/assets/10b0d4fa-936e-434b-b164-dacdb4003075)
