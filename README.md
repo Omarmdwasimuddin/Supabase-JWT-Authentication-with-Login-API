@@ -266,10 +266,3 @@ Bearer <access_token>
 > **যদি token ছাড়াই বা ভুল token দিয়ে চেষ্টা করো**, তাহলে Guard-এর ভিতরের `UnauthorizedException` throw হবে এবং response হবে `401 Unauthorized` — এটাই প্রমাণ করে Guard ঠিকমতো কাজ করছে।
 
 ---
-
-## যা পরিবর্তন হলো (এই আপডেটের সারসংক্ষেপ)
-
-- `jsonwebtoken` বাদ দিয়ে **`jose`** package install করা হয়েছে
-- `.env`-এ `SUPABASE_JWT_SECRET`-এর পাশাপাশি নতুন করে **`SUPABASE_URL`** যোগ করা হয়েছে
-- Guard-এর ভিতরের verification পদ্ধতি বদলে গেছে: আগে `jwt.verify(token, secret)` (shared-secret) ব্যবহার হতো, এখন `jwtVerify(token, JWKS)` ব্যবহার হচ্ছে, যেখানে `JWKS` টা Supabase-এর `/auth/v1/.well-known/jwks.json` endpoint থেকে asymmetric public key নিয়ে আসে (`createRemoteJWKSet` দিয়ে)
-- এই নতুন পদ্ধতি live test করে (Postman দিয়ে `GET /employee` call করে) `200 OK` সহ verify করা হয়েছে — token সঠিকভাবে verify হয়ে `request['user']` populate হচ্ছে
